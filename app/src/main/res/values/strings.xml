@@ -1,0 +1,23 @@
+<resources>
+    <string name="app_name">WorkoutAssistant</string>
+    <string-array name="choices">
+        <item>    Select Activity </item>
+        <item>    Lap Count</item>
+        <item>    Sprint Count</item>
+    </string-array>
+
+    <string-array name="laplength">
+        <item>   Select Length </item>
+        <item>  400 meter</item>
+        <item>  800 meter</item>
+        <item>  1200 meter</item>
+        <item>  1600 meter</item>
+    </string-array>
+
+    <string-array name="lapactivity">
+        <item>    Select Activity </item>
+        <item>    Walking</item>
+        <item>    Running</item>
+        <item>    Jogging</item>
+    </string-array>
+</resources>

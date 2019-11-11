@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "364591602192",
+    "firebase_url": "https://workoutassistant-888a6.firebaseio.com",
+    "project_id": "workoutassistant-888a6",
+    "storage_bucket": "workoutassistant-888a6.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:364591602192:android:b82519f6db914cc7ab4895",
+        "android_client_info": {
+          "package_name": "com.inducesmile.workoutassistant"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "364591602192-uit6apcfs0oat9qngv919lk0a977hjoh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.inducesmile.workoutassistant",
+            "certificate_hash": "637543d5e052645af0184f03a8a81e287595fb0b"
+          }
+        },
+        {
+          "client_id": "364591602192-4ulenlfqv930sh9srjpnmbcffeu68hep.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCWMAJi7d0Ff4I_-TR-VvAEtw0w4HNq6gU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "364591602192-4ulenlfqv930sh9srjpnmbcffeu68hep.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
