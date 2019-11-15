@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -173,11 +174,14 @@ public class GPS_Logging extends AppCompatActivity implements OnMapReadyCallback
         else{
             Location.distanceBetween(oldLatitude, oldLongitude,
                     lat, lonng, result);
-            String as=String.valueOf(result[0]);
-            totalDistance=result[0];
+
+            totalDistance=result[0]+totalDistance;
+            String as=String.valueOf(totalDistance);
+
             totalDistanceTravelled.setText(as);
             oldLongitude=lonng;
             oldLatitude=lat;
+            Toast.makeText(getApplicationContext(),"Insterted Value",Toast.LENGTH_LONG).show();
 
         }
 
