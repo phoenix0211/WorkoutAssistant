@@ -39,6 +39,8 @@ public class LapCount extends AppCompatActivity implements  AdapterView.OnItemSe
             @Override
             public void onClick(View view) {
                 Intent intent=new Intent(LapCount.this,GPS_Logging.class);
+                String lapType = spinner1.getSelectedItem().toString().split(" ")[0];
+                intent.putExtra("lapType", lapType);
                 startActivity(intent);
             }
         });
@@ -51,7 +53,7 @@ public class LapCount extends AppCompatActivity implements  AdapterView.OnItemSe
     @Override
     public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
         String text = parent.getItemAtPosition(position).toString();
-        Toast.makeText(parent.getContext(), text, Toast.LENGTH_SHORT).show();
+        //Toast.makeText(parent.getContext(), text, Toast.LENGTH_SHORT).show();
     }
 
     @Override

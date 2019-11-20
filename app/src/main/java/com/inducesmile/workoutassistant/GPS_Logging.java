@@ -7,8 +7,8 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
-import android.nfc.Tag;
 import android.os.Bundle;
+import android.os.Environment;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -34,15 +34,17 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
-import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 
+import java.io.File;
 import java.io.FileOutputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.util.Calendar;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
 
 public class GPS_Logging extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener, ResultCallback<Status> {
 
@@ -56,7 +58,12 @@ public class GPS_Logging extends AppCompatActivity implements OnMapReadyCallback
     static TextView totalLapsCompleted;
     Long tsLong;
     String ts="";
-    String FileName="data"+ts+".csv";
+    private String fileName;
+    File directory;
+    File file;
+    File sdCard;
+    FileOutputStream fOut;
+    static OutputStreamWriter osw;
 
     String start="Start Logging Data";
     String stop="Stop Logging Data";
@@ -65,11 +72,14 @@ public class GPS_Logging extends AppCompatActivity implements OnMapReadyCallback
     boolean firstTimeInLocationManager=true;
     static Double oldLatitude=0.0;
     static Double oldLongitude=0.0;
+    static long startTime;
     static float totalDistance=0.0f;
     static float lapDistance = 0.0f;
 
     private GeofencingClient geofencingClient;
     private PendingIntent geofencePendingIntent;
+    private static String lapType = null;
+    private static int lapTypeFactor = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,21 +97,33 @@ public class GPS_Logging extends AppCompatActivity implements OnMapReadyCallback
                     dataLogger.setText(stop);
                     tsLong = System.currentTimeMillis()/1000;
                     ts = tsLong.toString();
-                    FileName="data"+ts+".csv";
                 }
                 else
                 {
                     mGoogleApiClient.disconnect();
+                    try {
+                        osw.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                     dataLogger.setText(start);
                     firstTimeInLocationManager=true;
-
-
-
                 }
 
             }
         });
         geofencingClient = LocationServices.getGeofencingClient(this);
+        lapType = getIntent().getStringExtra("lapType");
+        if(lapType.equalsIgnoreCase("800")){
+            lapTypeFactor = 2;
+        }
+        else if(lapType.equalsIgnoreCase("1200")){
+            lapTypeFactor = 3;
+        }
+        else if(lapType.equalsIgnoreCase("1600")){
+            lapTypeFactor = 4;
+        }
+        Toast.makeText(getApplicationContext(), lapType + " : " + lapTypeFactor, Toast.LENGTH_LONG).show();
     }
 
     protected synchronized void buildGoogleApiClient(){
@@ -122,6 +144,12 @@ public class GPS_Logging extends AppCompatActivity implements OnMapReadyCallback
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         if (ContextCompat.checkSelfPermission(GPS_Logging.this,
                 Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED ||
+        ContextCompat.checkSelfPermission(GPS_Logging.this,
+                Manifest.permission.READ_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED ||
+        ContextCompat.checkSelfPermission(GPS_Logging.this,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE)
                 != PackageManager.PERMISSION_GRANTED) {
 
 
@@ -141,7 +169,9 @@ public class GPS_Logging extends AppCompatActivity implements OnMapReadyCallback
                             @Override
                             public void onClick(DialogInterface dialogInterface, int i) {
                                 ActivityCompat.requestPermissions(GPS_Logging.this,
-                                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
+                                                Manifest.permission.READ_EXTERNAL_STORAGE,
+                                        Manifest.permission.WRITE_EXTERNAL_STORAGE},
                                         1);
                             }
                         })
@@ -160,6 +190,13 @@ public class GPS_Logging extends AppCompatActivity implements OnMapReadyCallback
                 ActivityCompat.requestPermissions(GPS_Logging.this,
                         new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
                         1);
+                ActivityCompat.requestPermissions(GPS_Logging.this,
+                        new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                        1);
+                ActivityCompat.requestPermissions(GPS_Logging.this,
+                        new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
+                        1);
+
 
                 // MY_PERMISSIONS_REQUEST_READ_CONTACTS is an
                 // app-defined int constant. The callback method gets the
@@ -198,8 +235,11 @@ public class GPS_Logging extends AppCompatActivity implements OnMapReadyCallback
             oldLongitude=lonng;
             totalDistance=0.0f;
             lapDistance=0.0f;
+            laps = 0;
+            startTime = System.currentTimeMillis();
             startGeofence(oldLatitude, oldLongitude);
             totalLapsCompleted.setText("0");
+            createFile();
         }
         else{
             Location.distanceBetween(oldLatitude, oldLongitude,
@@ -217,15 +257,6 @@ public class GPS_Logging extends AppCompatActivity implements OnMapReadyCallback
         }
         distanceMap.put(lapDistance, lat.toString() + ',' + lonng.toString());
         Log.i(TAG, distanceMap.get(lapDistance));
-        data=""+lonng+","+lat+","+totalDistance+"\n";
-        try {
-            FileOutputStream fileOutputStream = openFileOutput(FileName, Context.MODE_APPEND);
-            fileOutputStream.write(data.getBytes());
-            fileOutputStream.close();
-
-        }catch (Exception e){
-            e.printStackTrace();
-        }
         firstTimeInLocationManager=false;
     }
 
@@ -271,14 +302,22 @@ public class GPS_Logging extends AppCompatActivity implements OnMapReadyCallback
         return res;
     }
 
+    private static String getTime(long uptime){
+        long minutes = TimeUnit.MILLISECONDS.toMinutes(uptime);
+        uptime -= TimeUnit.MINUTES.toMillis(minutes);
+
+        long seconds = TimeUnit.MILLISECONDS.toSeconds(uptime);
+        return minutes + " min " + seconds + " s";
+    }
+
     private static void lapChange(Context context) {
 //        distanceMap.put(0.0f, "30.767935,76.788814");
 //        distanceMap.put(93.03f, "30.768544,76.789908");
 //        distanceMap.put(185.55f, "30.769097,76.789661");
 //        distanceMap.put(280.00f, "30.768489,76.788513");
-        if(lapDistance > 360 && lapDistance < 500){
-            Toast.makeText(context, "Lap completed", Toast.LENGTH_LONG).show();
-            float unit = lapDistance/4;
+        if(lapDistance > 360*lapTypeFactor && lapDistance < 500*lapTypeFactor){
+            //Toast.makeText(context, "Lap completed", Toast.LENGTH_LONG).show();
+            float unit = lapDistance/(4*lapTypeFactor);
             Log.i(TAG, "unit: " + unit);
             String[] a = getMapValue(0.0f).split(",", 2);
             String[] b = getMapValue(unit).split(",", 2);
@@ -293,18 +332,64 @@ public class GPS_Logging extends AppCompatActivity implements OnMapReadyCallback
             if(area > 5000f && area < 10000f){
                 laps++;
                 totalLapsCompleted.setText(String.valueOf(laps));
-                Toast.makeText(context, "Valid Lap, Area: " + area, Toast.LENGTH_LONG).show();
+                long time = System.currentTimeMillis() - startTime;
+                String lapTime = getTime(time);
+                Toast.makeText(context, "Valid Lap, Area: " + area + " time: " + time, Toast.LENGTH_LONG).show();
+                double avgSpeed = lapDistance*1000/time;
+                appendToFile(String.valueOf(laps), String.valueOf(lapDistance), lapTime, String.valueOf(avgSpeed));
             }
             else{
                 Toast.makeText(context, "Invalid Lap, Area: " + area, Toast.LENGTH_LONG).show();
             }
+            lapDistance = 0.0f;
+            startTime = System.currentTimeMillis();
+            distanceMap.clear();
+        }
+        else if (lapDistance > 360 && lapDistance < 500 && !lapType.equalsIgnoreCase("400")){
+            Toast.makeText(context, "Partial Lap Completed, " + (Long.parseLong(lapType) - lapDistance) + "m left", Toast.LENGTH_SHORT).show();
         }
         else{
             Toast.makeText(context, "Not a lap", Toast.LENGTH_LONG).show();
+            lapDistance = 0.0f;
+            startTime = System.currentTimeMillis();
+            distanceMap.clear();
         }
-        lapDistance = 0.0f;
-        distanceMap.clear();
-        //distanceMap.put(lapDistance, oldLatitude.toString() + "," + oldLongitude.toString());
+    }
+
+    private void createFile(){
+        fileName = "gps_logs_" + Calendar.getInstance().getTime().toString() + ".csv";
+        sdCard = Environment.getExternalStorageDirectory();
+        directory = new File (sdCard.getAbsolutePath() + "/Workout Assistant");
+        if (!directory.exists())
+        {
+            directory.mkdirs();
+        }
+        try {
+            file = new File(directory, fileName);
+            if (!file.exists())
+            {
+                file.createNewFile();
+            }
+            fOut = new FileOutputStream(file, true);
+            osw = new OutputStreamWriter(fOut);
+        } catch (Exception e) {
+
+        }
+        appendToFile("Lap (" + lapType + "m)", "Distance", "Time Taken", "Speed");
+    }
+
+    private static void appendToFile(String lap, String distance, String time, String speed) {
+        try
+        {
+            String myStr = lap + "," + distance + "," + time + "," + speed + "\n";
+            osw.write(myStr);
+            osw.flush();
+        }
+        catch (IOException ioe)
+        {
+            ioe.printStackTrace();
+        }
+
     }
 
     private void startGeofence(double lat, double lng){
